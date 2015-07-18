@@ -163,8 +163,6 @@ public class RotaryCraft extends DragonAPIMod {
 
 	static final Random rand = new Random();
 
-	private boolean isLocked = false;
-
 	public static final Block[] blocks = new Block[BlockRegistry.blockList.length];
 	public static final Item[] items = new Item[ItemRegistry.itemList.length];
 
@@ -188,49 +186,6 @@ public class RotaryCraft extends DragonAPIMod {
 	@SidedProxy(clientSide="Reika.RotaryCraft.ClientProxy", serverSide="Reika.RotaryCraft.CommonProxy")
 	public static CommonProxy proxy;
 
-	@EventHandler
-	public void invalidSignature(FMLFingerprintViolationEvent evt) {
-
-	}
-
-	public final boolean isLocked() {
-		return isLocked;
-	}
-
-	private final boolean checkForLock() {
-		for (int i = 0; i < ItemRegistry.itemList.length; i++) {
-			ItemRegistry r = ItemRegistry.itemList[i];
-			if (!r.isDummiedOut()) {
-				Item id = r.getItemInstance();
-				if (BannedItemReader.instance.containsID(id)) {
-					return true;
-				}
-			}
-		}
-		for (int i = 0; i < BlockRegistry.blockList.length; i++) {
-			BlockRegistry r = BlockRegistry.blockList[i];
-			if (!r.isDummiedOut()) {
-				Block id = r.getBlockInstance();
-				if (BannedItemReader.instance.containsID(id)) {
-					return true;
-				}
-			}
-		}/*
-		for (int i = 0; i < ExtraConfigIDs.idList.length; i++) {
-			ExtraConfigIDs entry = ExtraConfigIDs.idList[i];
-			if (entry.isBlock()) {
-				int id = entry.getValue();
-				if (BannedItemReader.instance.containsID(id))
-					return true;
-			}
-			else if (entry.isItem()) {
-				int id = entry.getShiftedValue();
-				if (BannedItemReader.instance.containsID(id))
-					return true;
-			}
-		}*/
-		return false;
-	}
 
 	@Override
 	@EventHandler
@@ -246,32 +201,14 @@ public class RotaryCraft extends DragonAPIMod {
 		config.initProps(evt);
 		proxy.registerSounds();
 
-		isLocked = this.checkForLock();
-		if (this.isLocked()) {
-			ReikaJavaLibrary.pConsole("");
-			ReikaJavaLibrary.pConsole("\t========================================= ROTARYCRAFT ===============================================");
-			ReikaJavaLibrary.pConsole("\tNOTICE: It has been detected that third-party plugins are being used to disable parts of RotaryCraft.");
-			ReikaJavaLibrary.pConsole("\tBecause this is frequently done to sell access to mod content, which is against the Terms of Use");
-			ReikaJavaLibrary.pConsole("\tof both Mojang and the mod, the mod has been functionally disabled. No damage will occur to worlds,");
-			ReikaJavaLibrary.pConsole("\tand all machines (including contents) and items already placed or in inventories will remain so,");
-			ReikaJavaLibrary.pConsole("\tbut its machines will not function, recipes will not load, and no renders or textures will be present.");
-			ReikaJavaLibrary.pConsole("\tAll other mods in your installation will remain fully functional.");
-			ReikaJavaLibrary.pConsole("\tTo regain functionality, unban the RotaryCraft content, and then reload the game. All functionality");
-			ReikaJavaLibrary.pConsole("\twill be restored. You may contact Reika for further information on his forum thread.");
-			ReikaJavaLibrary.pConsole("\t=====================================================================================================");
-			ReikaJavaLibrary.pConsole("");
-		}
-
 		logger = new ModLogger(instance, ConfigRegistry.ALARM.getState());
 
 		this.setupClassFiles();
 
-		if (!this.isLocked()) {
 			if (ConfigRegistry.ACHIEVEMENTS.getState()) {
 				achievements = new Achievement[RotaryAchievements.list.length];
 				RotaryAchievements.registerAchievements();
 			}
-		}
 
 		int id = ExtraConfigIDs.FREEZEID.getValue();
 		PotionCollisionTracker.instance.addPotionID(instance, id, FreezePotion.class);
@@ -291,10 +228,8 @@ public class RotaryCraft extends DragonAPIMod {
 		CreativeTabSorter.instance.registerCreativeTabAfter(tabSpawner, tabRotary);
 
 		//CompatibilityTracker.instance.registerIncompatibility(ModList.ROTARYCRAFT, ModList.OPTIFINE, CompatibilityTracker.Severity.GLITCH, "Optifine is known to break some rendering and cause framerate drops.");
-		CompatibilityTracker.instance.registerIncompatibility(ModList.ROTARYCRAFT, ModList.GREGTECH, CompatibilityTracker.Severity.GLITCH, "The GT unifier registers HSLA steel as standard OreDict steel. This breaks the techtrees of mods like RailCraft and TConstruct.");
-
-		FMLInterModComms.sendMessage("zzzzzcustomconfigs", "blacklist-mod-as-output", this.getModContainer().getModId());
-
+		
+		
 		this.basicSetup(evt);
 		this.finishTiming();
 	}
@@ -304,15 +239,10 @@ public class RotaryCraft extends DragonAPIMod {
 	public void load(FMLInitializationEvent event) {
 		this.startTiming(LoadPhase.LOAD);
 
-		if (this.isLocked())
 			PlayerHandler.instance.registerTracker(LockNotification.instance);
 
-		if (!this.isLocked()) {
 			proxy.addArmorRenders();
 			proxy.registerRenderers();
-		}
-
-		PackModificationTracker.instance.addMod(this, config);
 
 		ItemStackRepository.instance.registerClass(this, ItemStacks.class);
 
@@ -327,9 +257,7 @@ public class RotaryCraft extends DragonAPIMod {
 		//DemoMusic.addTracks();
 
 		RotaryRecipes.loadMachineRecipeHandlers();
-		if (!this.isLocked()) {
 			RotaryRecipes.addRecipes();
-		}
 		RotaryChests.addToChests();
 
 		float iron = ConfigRegistry.EXTRAIRON.getFloat();
@@ -351,63 +279,12 @@ public class RotaryCraft extends DragonAPIMod {
 		}
 		FMLInterModComms.sendMessage("ForgeMicroblock", "microMaterial", BlockRegistry.BLASTGLASS.getStackOf());
 
-		DonatorController.instance.addDonation(instance, "sys64738", 25.00F);
-		DonatorController.instance.addDonation(instance, "Zerotheliger", "bc7dc757-b92a-457e-98b9-351ce7a317a3", 50.00F);
-		DonatorController.instance.addDonation(instance, "EverRunes", 75.00F);
-		DonatorController.instance.addDonation(instance, "AnotherDeadBard", 25.00F);
-		DonatorController.instance.addDonation(instance, "hyper1on", 25.00F);
-		DonatorController.instance.addDonation(instance, "MarkyRedstone", 35.00F);
-		DonatorController.instance.addDonation(instance, "Darkholme", 10.00F);
-		DonatorController.instance.addDonation(instance, "william kirk", 10.00F);
-		DonatorController.instance.addDonation(instance, "Tyler Rudie", 10.00F);
-		DonatorController.instance.addDonation(instance, "Mortvana", "456226bb-8f9d-4061-a474-0ce94ebecbfb", 7.50F);
-		DonatorController.instance.addDonation(instance, "goreacraft", 10.00F);
-		DonatorController.instance.addDonation(instance, "Scooterdanny", 30.00F);
-		DonatorController.instance.addDonation(instance, "Sibmer", 50.00F);
-		DonatorController.instance.addDonation(instance, "Hezmana", 10.00F);
-		DonatorController.instance.addDonation(instance, "Josh Ricker", 20.00F);
-		DonatorController.instance.addDonation(instance, "Karapol", 25.00F);
-		DonatorController.instance.addDonation(instance, "RiComikka", 15.00F);
-		DonatorController.instance.addDonation(instance, "Spork", 10.00F);
-		DonatorController.instance.addDonation(instance, "Demosthenex", "2249847d-1992-45e8-8c10-8d17f467ca96", 50.00F);
-		DonatorController.instance.addDonation(instance, "Lavious", 15.00F);
-		DonatorController.instance.addDonation(instance, "Paul17041993", 20.00F);
-		DonatorController.instance.addDonation(instance, "Mattabase", 40.00F);
-		DonatorController.instance.addDonation(instance, "Celestial Phoenix", 100.00F);
-		DonatorController.instance.addDonation(instance, "SemicolonDash", 50.00F);
-		DonatorController.instance.addDonation(instance, "Choco218", 50.00F);
-		DonatorController.instance.addDonation(instance, "Dragonsummoner", 5.00F);
-		DonatorController.instance.addDonation(instance, "StoneRhino", "a94d96b9-23c9-4458-b394-fcc63db67584", 100.00F);
-		DonatorController.instance.addDonation(instance, "Jason Saffle", "2b9a2791-3465-4332-8013-4015dc9cc120", 20.00F);
-
-		if (!this.isLocked())
-			IntegrityChecker.instance.addMod(instance, BlockRegistry.blockList, ItemRegistry.itemList);
-
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.redstone_block);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.lapis_block);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.planks);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.stone);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.nether_brick);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.emerald_block);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.obsidian);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.sandstone);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.quartz_block);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.wool);
-		VanillaIntegrityTracker.instance.addWatchedBlock(instance, Blocks.glass);
+		
 
 		if (ConfigRegistry.HANDBOOK.getState())
 			PlayerFirstTimeTracker.addTracker(new HandbookTracker());
 		PlayerHandler.instance.registerTracker(HandbookConfigVerifier.instance);
 
-		//ReikaEEHelper.blacklistRegistry(BlockRegistry.blockList);
-		//ReikaEEHelper.blacklistRegistry(ItemRegistry.itemList);
-
-		ReikaEEHelper.blacklistItemStack(ItemStacks.steelingot);
-		ReikaEEHelper.blacklistItemStack(ItemStacks.bedingot);
-		ReikaEEHelper.blacklistItemStack(ItemStacks.springingot);
-		ReikaEEHelper.blacklistItemStack(ItemStacks.redgoldingot);
-		ReikaEEHelper.blacklistEntry(ItemRegistry.ETHANOL);
-		ReikaEEHelper.blacklistEntry(BlockRegistry.BLASTGLASS);
 
 		SuggestedModsTracker.instance.addSuggestedMod(instance, ModList.REACTORCRAFT, "Endgame power generation of multiple gigawatts");
 		SuggestedModsTracker.instance.addSuggestedMod(instance, ModList.ELECTRICRAFT, "Easier and lower-CPU-load power transmission and distribution");
@@ -416,54 +293,6 @@ public class RotaryCraft extends DragonAPIMod {
 		SuggestedModsTracker.instance.addSuggestedMod(instance, ModList.FORESTRY, "Access to Canola bees to speed canola growth and produce some lubricant");
 		SuggestedModsTracker.instance.addSuggestedMod(instance, ModList.RAILCRAFT, "Access to steam power generation and consumption");
 		SuggestedModsTracker.instance.addSuggestedMod(instance, ModList.TWILIGHT, "Special integration with TF mobs and structures");
-
-		SensitiveItemRegistry.instance.registerItem(BlockRegistry.BLASTGLASS.getBlockInstance());
-		SensitiveItemRegistry.instance.registerItem(BlockRegistry.BLASTPANE.getBlockInstance());
-
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.ETHANOL.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.CANOLA.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.EXTRACTS.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.MODEXTRACTS.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.CUSTOMEXTRACT.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.ENGINE.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.SHAFT.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.FLYWHEEL.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.GEARBOX.getItemInstance());
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.MACHINE.getItemInstance());
-		for (int i = 0; i < ItemRegistry.itemList.length; i++) {
-			ItemRegistry ir = ItemRegistry.itemList[i];
-			if (!ir.isDummiedOut()) {
-				if (ir.isBedrockArmor() || ir.isBedrockTypeArmor() || ir.isBedrockTool())
-					SensitiveItemRegistry.instance.registerItem(ir.getItemInstance());
-			}
-		}
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.sludge);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.springingot);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.bedingotblock);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.steelblock);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.steelingot);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.netherrackdust);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.tar);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.redgoldingot);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.tungsteningot);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.bedrockdust);
-		SensitiveItemRegistry.instance.registerItem(ItemStacks.bedingot);
-		SensitiveItemRegistry.instance.registerItem(ItemRegistry.UPGRADE.getItemInstance());
-
-		if (MTInteractionManager.isMTLoaded()) {
-			MTInteractionManager.instance.blacklistRecipeRemovalFor(MachineRegistry.BLASTFURNACE.getCraftedProduct());
-			MTInteractionManager.instance.blacklistRecipeRemovalFor(MachineRegistry.WORKTABLE.getCraftedProduct());
-		}
-
-		SensitiveFluidRegistry.instance.registerFluid("jet fuel");
-		SensitiveFluidRegistry.instance.registerFluid("rc ethanol");
-		SensitiveFluidRegistry.instance.registerFluid("lubricant");
-		SensitiveFluidRegistry.instance.registerFluid("liquid nitrogen");
-		SensitiveFluidRegistry.instance.registerFluid("molten hsla");
-
-		MinetweakerHooks.instance.registerClass(GrinderTweaker.class);
-		MinetweakerHooks.instance.registerClass(PulseJetTweaker.class);
-		MinetweakerHooks.instance.registerClass(FrictionTweaker.class);
 
 		FurnaceFuelRegistry.instance.registerItemSimple(ItemRegistry.ETHANOL.getStackOf(), 2);
 		FurnaceFuelRegistry.instance.registerItemSimple(ItemStacks.coke, 12);
@@ -487,15 +316,10 @@ public class RotaryCraft extends DragonAPIMod {
 		//RotaryRecipes.addModInterface();
 		proxy.initClasses();
 
-		proxy.loadDonatorRender();
-
 		TileEntityReservoir.initCreativeFluids();
 		TileEntityFluidCompressor.initCreativeFluids();
 		ItemFuelTank.initCreativeFluids();
 
-		RotaryIntegrationManager.verifyClassIntegrity();
-
-		if (!this.isLocked())
 			if (ModList.FORESTRY.isLoaded()) {
 				try {
 					CanolaBee bee = new CanolaBee();
@@ -524,7 +348,6 @@ public class RotaryCraft extends DragonAPIMod {
 			}
 		}
 
-		if (!this.isLocked())
 			if (ModList.THAUMCRAFT.isLoaded()) {
 				RotaryCraft.logger.log("Adding ThaumCraft aspects.");
 				ReikaThaumHelper.addAspects(ItemStacks.canolaSeeds, Aspect.EXCHANGE, 2, Aspect.CROP, 1, Aspect.MECHANISM, 1);
@@ -584,14 +407,9 @@ public class RotaryCraft extends DragonAPIMod {
 				ReikaThaumHelper.addAspects(ItemStacks.coke, Aspect.FIRE, 2, Aspect.MECHANISM, 2);
 
 				MachineAspectMapper.instance.register();
-			}
 
-		if (!this.isLocked())
 			RotaryRecipes.addPostLoadRecipes();
 
-		if (ModList.ROUTER.isLoaded()) {
-			RouterHelper.blacklistTileEntity(TileEntityExtractor.class, "Extractor", "BlockMIMachine:10"); //Extractor
-		}
 
 		this.finishTiming();
 	}
@@ -599,20 +417,6 @@ public class RotaryCraft extends DragonAPIMod {
 	@EventHandler
 	public void registerCommands(FMLServerStartingEvent evt) {
 		evt.registerServerCommand(new FindMachinesCommand());
-	}
-
-	@EventHandler
-	public void overrideRecipes(FMLServerStartedEvent evt) {
-		if (!this.isLocked()) {
-			if (!ReikaRecipeHelper.isCraftable(MachineRegistry.BLASTFURNACE.getCraftedProduct())) {
-				Collection<ItemStack> c = RotaryRecipes.getBlastFurnaceGatingMaterials();
-				for (ItemStack is : c)
-					GameRegistry.addRecipe(MachineRegistry.BLASTFURNACE.getCraftedProduct(), "StS", "trt", "StS", 'r', Items.redstone, 'S', ReikaItemHelper.stoneBricks, 't', is);
-			}
-			if (!ReikaRecipeHelper.isCraftable(MachineRegistry.WORKTABLE.getCraftedProduct())) {
-				GameRegistry.addRecipe(MachineRegistry.WORKTABLE.getCraftedProduct(), " C ", "SBS", "srs", 'r', Items.redstone, 'S', ItemStacks.steelingot, 'B', Blocks.brick_block, 'C', Blocks.crafting_table, 's', ReikaItemHelper.stoneSlab);
-			}
-		}
 	}
 
 	private static void setupClassFiles() {
@@ -629,10 +433,7 @@ public class RotaryCraft extends DragonAPIMod {
 	@SubscribeEvent
 	@SideOnly(Side.CLIENT)
 	public void textureHook(TextureStitchEvent.Pre event) {
-		if (!this.isLocked())
 			RotaryRegistration.setupLiquidIcons(event);
-		if (OldTextureLoader.instance.loadOldTextures())
-			OldTextureLoader.instance.reloadOldTextures(event.map);
 	}
 
 	@Override
