@@ -94,12 +94,6 @@ public class RotaryEventManager {
 	}
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
-	public void stopHijackedFurnaces(FurnaceUpdateEvent.Pre evt) {
-		if (TileEntityFurnaceHeater.isHijacked(evt.furnace))
-			evt.setCanceled(true);
-	}
-
-	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public void preventControlledDespawns(LivingSpawnEvent.AllowDespawn evt) {
 		if (TileEntitySpawnerController.isFlaggedNoDespawn(evt.entity))
 			evt.setResult(Result.DENY);
@@ -132,13 +126,6 @@ public class RotaryEventManager {
 			evt.setExpToDrop(0);
 		}
 	}
-
-	@SubscribeEvent
-	public void cancelFramez(FrameUsageEvent evt) {
-		if (!this.isMovable(evt.tile)) {
-			evt.setCanceled(true);
-		}
-	}
 	/*
 	@SubscribeEvent
 	@SideOnly(Side.CLIENT)
@@ -153,38 +140,6 @@ public class RotaryEventManager {
 			}
 		}
 	}*/
-
-	@SubscribeEvent(priority = EventPriority.LOWEST)
-	@ModDependent(ModList.BLOODMAGIC)
-	@ClassDependent("WayofTime.alchemicalWizardry.api.event.TeleposeEvent")
-	public void noTelepose(TeleposeEvent evt) {
-		if (!this.isMovable(evt.getInitialTile()) || !this.isMovable(evt.getFinalTile()))
-			evt.setCanceled(true);
-	}
-
-	private boolean isMovable(TileEntity te) {
-		if (!ConfigRegistry.FRAMES.getState()) {
-			if (te instanceof ShaftMachine)
-				return false;
-			if (te instanceof TileEntityIOMachine)
-				return false;
-		}
-		return true;
-	}
-
-	@SubscribeEvent
-	public void bonemealEvent(BonemealEvent event)
-	{
-		if (!event.world.isRemote)  {
-			if (event.block == BlockRegistry.CANOLA.getBlockInstance()) {
-				World world = event.world;
-				int x = event.x;
-				int y = event.y;
-				int z = event.z;
-				event.setResult(Event.Result.DENY);
-			}
-		}
-	}
 
 	@SubscribeEvent
 	public void onRemoveArmor(RemoveFromSlotEvent evt) {
@@ -211,33 +166,6 @@ public class RotaryEventManager {
 					//ReikaJavaLibrary.pConsole(event.distance);
 					if (is.getItem() == ItemRegistry.BEDJUMP.getItemInstance())
 						event.distance = Math.min(event.distance, 25);
-				}
-			}
-		}
-	}
-
-	@SubscribeEvent(priority=EventPriority.LOWEST)
-	public void bedrockSave(LivingHurtEvent evt) {
-		EntityLivingBase e = evt.entityLiving;
-		if (evt.ammount < 1000) {
-			if (e instanceof EntityPlayer) {
-				if (ItemBedrockArmor.isWearingFullSuitOf(e)) {
-					evt.ammount = Math.min(evt.ammount, 5);
-					if (evt.ammount <= 1) {
-						evt.ammount = 0;
-						return;
-					}
-					else {
-						Entity attacker = evt.source.getSourceOfDamage();
-						if (attacker instanceof EntityPlayer) {
-							ItemStack held = ((EntityPlayer)attacker).getCurrentEquippedItem();
-							if (held != null && held.getItem().getClass().getSimpleName().toLowerCase().contains("rapier")) {
-								evt.ammount = 0;
-								int dmg = held.getItem().getDamage(held);
-								held.getItem().setDamage(held, dmg+120);
-							}
-						}
-					}
 				}
 			}
 		}
@@ -291,124 +219,5 @@ public class RotaryEventManager {
 		if (pe == null)
 			return;
 		ad.setResult(Result.DENY);
-	}
-
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public void buildWorktables(PlayerPlaceBlockEvent evt) {
-		if (evt.block == Blocks.crafting_table || evt.block instanceof BlockWorkbench || TinkerToolHandler.getInstance().isWorkbench(evt.block)) {
-			this.checkAndBuildWorktable(evt.world, evt.x, evt.y, evt.z);
-		}
-	}
-
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public void buildWorktables(PlayerInteractEvent evt) {
-		if (evt.action == Action.RIGHT_CLICK_BLOCK) {
-			Block b = evt.world.getBlock(evt.x, evt.y, evt.z);
-			if (b == Blocks.crafting_table || b instanceof BlockWorkbench || TinkerToolHandler.getInstance().isWorkbench(b)) {
-				if (this.checkAndBuildWorktable(evt.world, evt.x, evt.y, evt.z))
-					evt.setCanceled(true);
-			}
-		}
-	}
-
-	private boolean checkAndBuildWorktable(World world, int x, int y, int z) {
-		if (!ReikaWorldHelper.matchWithItemStack(world, x, y-1, z, ItemStacks.steelblock))
-			return false;
-		if (world.getBlock(x, y-2, z) != Blocks.redstone_block)
-			return false;
-		for (int i = -1; i <= 1; i++) {
-			for (int k = -1; k <= 1; k++) {
-				if (i != 0 || k != 0) {
-					if (world.getBlock(x+i, y-1, z+k) != Blocks.brick_block)
-						return false;
-					if (!ReikaWorldHelper.matchWithItemStack(world, x+i, y-2, z+k, ReikaItemHelper.stoneDoubleSlab))
-						return false;
-				}
-			}
-		}
-		for (int i = -1; i <= 1; i++) {
-			for (int k = -1; k <= 1; k++) {
-				world.setBlock(x+i, y-1, z+k, Blocks.air);
-				world.setBlock(x+i, y-2, z+k, Blocks.air);
-			}
-		}
-		world.setBlock(x, y, z, Blocks.air);
-		SoundRegistry.CRAFT.playSoundAtBlock(world, x, y, z);
-		world.setBlock(x, y-2, z, MachineRegistry.WORKTABLE.getBlock(), MachineRegistry.WORKTABLE.getMachineMetadata(), 3);
-		return true;
-	}
-
-	@SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
-	public void preventDisallowOfCrucialBlocks(BlockEvent ev) {
-		Class c = ev.getClass();
-		boolean place = c.getSimpleName().contains("BlockPlaceEvent");
-		World world = ev.world;
-		int x = ev.x;
-		int y = ev.y;
-		int z = ev.z;
-		if (ev.block == null)
-			return;
-		Block id = ev.block;
-		int meta = ev.blockMetadata;
-		MachineRegistry m = MachineRegistry.getMachineFromIDandMetadata(id, meta);
-		if (place) { //Bukkit Block Place Event
-			if (m != null) {
-				if (ConfigRegistry.ALLOWBAN.getState()) {
-					if (m.isCrucial()) {
-						if (m.canBeDisabledInOverworld() && ReikaWorldHelper.otherDimensionsExist() && world.provider.dimensionId == 0) {
-							if (ev.isCanceled())
-								RotaryCraft.logger.log("Something successfully cancelled the placement of "+m+". This ban applies to the overworld only!");
-						}
-						else {
-							if (ev.isCanceled())
-								RotaryCraft.logger.log("Something tried to cancel the placement of "+m+". This machine is essential and its placement may not be disallowed.");
-							ev.setCanceled(false);
-						}
-					}
-					else {
-						if (ev.isCanceled())
-							RotaryCraft.logger.log("Something successfully cancelled the placement of "+m+". Unless this machine really needs to be disabled, it is recommended you remove this placement ban.");
-					}
-				}
-				else {
-					if (ev.isCanceled())
-						RotaryCraft.logger.log("Something tried to cancel the placement of "+m+". This is permissible, but you must change the configs to allow it.");
-					ev.setCanceled(false);
-				}
-			}
-		}
-
-		if (ConfigRegistry.LOGBLOCKS.getState()) {
-			if (m != null) {
-				EntityPlayer ep = (EntityPlayer)ReikaWorldHelper.getClosestLivingEntityOfClass(EntityPlayer.class, world, x+0.5, y+0.5, z+0.5, 6);
-				String s = place ? "placed" : "removed";
-				String name = ep != null ? ep.getCommandSenderName() : "<No Player>";
-				RotaryCraft.logger.log("A "+m.getName()+" was "+s+" by "+name+" at "+x+", "+y+", "+z+" in world dimension "+world.provider.dimensionId);
-			}
-		}
-
-	}
-
-	private void hardCancel(Event e, boolean cancel, boolean print) {
-		if (!e.isCancelable())
-			throw new IllegalArgumentException("Event "+e.getClass().getSimpleName()+" cannot be cancelled!");
-		try {
-			Field f = ReikaReflectionHelper.getProtectedInheritedField(e, "cancel");
-			f.setAccessible(true);
-			f.set(e, cancel);
-		}
-		catch (Exception ex) {
-			if (print)
-				ex.printStackTrace();
-		}
-		try {
-			Field f = Event.class.getDeclaredField("isCanceled");
-			f.setAccessible(true);
-			f.set(e, cancel);
-		}
-		catch (Exception ex) {
-			if (print)
-				ex.printStackTrace();
-		}
 	}
 }
